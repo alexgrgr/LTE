@@ -17,6 +17,7 @@ txInfo.TotSubframes = params.numFrames*10;
 txInfo.DuplexMode = enb.DuplexMode;
 txInfo.PDSCH = PDSCH;
 txInfo.DuplexMode = enb.DuplexMode;
+txInfo.SNR = params.SNR;
 % txInfo.CellRSPower = ;
 % txInfo.PSSPower = ;
 % txInfo.SSSPower = ;

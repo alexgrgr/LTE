@@ -1,4 +1,4 @@
-function rxWaveform = lteCh(txWaveform, enb, channel, SNRdB, txInfo)  
+function rxWaveform = lteCh(txWaveform, enb, channel, txInfo)  
 
 %% Channel Model
 % Apply Channel Fading adding zeros for later syncronization without
@@ -7,7 +7,7 @@ function rxWaveform = lteCh(txWaveform, enb, channel, SNRdB, txInfo)
 
 %% Additive WGN
 % Convert dB to linear
-SNR = 10^(SNRdB/20);
+SNR = 10^(txInfo.SNR/20);
 
 % Normalize noise power to take account of sampling rate, which is
 % a function of the IFFT size used in OFDM modulation, and the 

@@ -35,7 +35,7 @@ for i=0:nsf-1
      
      %%Only works for 1 antena. Retreiving just the first
     % Set current subframe into output
-    colors(:,i*L+(1:L)) = colors(:,i*L+(1:L)) + sfcolors;
+    colors(:,i*L+(1:L)) = colors(:,i*L+(1:L)) + sfcolors(:,1);
 end
 
 Level = colors;
