@@ -1,4 +1,5 @@
 function bw=lteDLRBtoBW(DLRB)
+% Get bandwidth from the number of downlink resource blocks
 switch DLRB
     case 6
         bw='1.4';
@@ -13,5 +14,5 @@ switch DLRB
     case 100
         bw='20';
     otherwise
-        error('Wrong choice of Resource block size given!');
+        error('enb.NDLRB: Wrong choice of Resource block size given!');
 end

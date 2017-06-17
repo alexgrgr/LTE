@@ -1,4 +1,6 @@
 function [txWaveform, txCW, resourceGrids]= lteTx(txInfo, enb, subframes, params)
+% Creation of an LTE PHYsical layer waveform with almost every channel and
+% signals
 for n=1:txInfo.TotSubframes
     % Set enb to actual frame and subframe
     [enb, PDSCH, ~]=setParams(params, n);
@@ -29,7 +31,7 @@ for n=1:txInfo.TotSubframes
             lte.internal.defaultValueWarning('SIB.Enable','On');
         end
         if any(strcmpi(enb.SIB.Enable,{'On','Enable'})) 
-            [subframe, ~] = lteSIB1(enb, txInfo, subframe);
+            [subframe, ~] = lteSIB1(enb, PDSCH, subframe);
         end
     else
         % DCI - Downlink Control Information message
@@ -147,11 +149,4 @@ for n=1:txInfo.TotSubframes
 end
 %% Modulation of final signal
 % lteOFDMModulate - Signal is OFDM with Cyclic Prefix (LTE)
-% lteFOFDMTx      - Signal is Filtered OFDM (5G candidate)
-% lteUFMCTx       - Signal is Universal Filtered Multicarries Modulation 
-%                   (5G candidate)
-% 
-switch params.WaveMod
-    case 'OFDM'
-        txWaveform = lteOFDMModulate(enb, resourceGrids);
-    end
+txWaveform = lteOFDMModulate(enb, resourceGrids);

@@ -1,5 +1,6 @@
 function [rxGrid] = FiveGReception(rxWaveform, enbRx, WaveMod)
-
+% Receives a one subframe waveform and demodulates it, if the modulation is
+% FODM or UFMC, to return the resource grid associated with it.
 switch WaveMod
     case 'FOFDM'
         rxGrid = commExamplePrivate('lteFOFDMRx', ...

@@ -1,4 +1,7 @@
 function SDRTx = searchsdr
+% Searches for an USRP SDR connected to this host using a USB or Ethernet
+% connection.
+
 connectedRadios = findsdru;
 if strncmp(connectedRadios(1).Status, 'Success', 7)
   SDRTx.Platform = connectedRadios(1).Platform;

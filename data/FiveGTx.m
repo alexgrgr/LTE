@@ -1,6 +1,9 @@
-function [txWaveform, subframe] = FiveGTx(params, txInfo, n, subframes)
+function [txWaveform, subframe] = FiveGTx(params, n, subframes)
+% Generates an LTE downlink resource grid for one subframes and modulates
+% it with a candidate waveform, as specified in setParams.m. Waveforms can 
+% be FOFDM or UFMC
 
-% Set enb to actual frame and subframe
+%% Set enb to actual frame and subframe
 [enb, PDSCH, ~]=setParams(params, n-1);
 %% Generate empty OFDM subframe grid
 subframe = lteDLResourceGrid(enb);
@@ -29,7 +32,7 @@ if (isfield(enb,'SIB')) && (mod(n,10) == 5) && (mod(SFN,2)==0)
         lte.internal.defaultValueWarning('SIB.Enable','On');
     end
     if any(strcmpi(enb.SIB.Enable,{'On','Enable'})) 
-        [subframe, ~] = lteSIB1(enb, txInfo, subframe);
+        [subframe, ~] = lteSIB1(enb, PDSCH, subframe);
     end
 else
     % DCI - Downlink Control Information message

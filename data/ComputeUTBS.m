@@ -1,5 +1,7 @@
 function [PDSCH,MCS] = ComputeUTBS(PDSCH,NrLayersCW,CW)
-% Compute uncoded transport block size
+% Computes uncoded transport block size and transport code block size
+
+
 NumberofPRBs = numel(PDSCH.PRBSet);
 % Use the number of layers to compute the TBS
 AllValues = double(lteTBS(NumberofPRBs,0:26,NrLayersCW));

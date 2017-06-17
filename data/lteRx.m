@@ -1,5 +1,8 @@
 function [ crc, rxGrid, eqGrid, enbRx, PDSCHRx, ofdmInfo, rxBits]= lteRx(rxWaveform)
+% This fuction receives a signal and demodulates and synchronize it to
+% extra information from it, stored in the outputs
 
+%%
 % Set Number of resource blocks to minimum. Real information is going to be
 % extracted from the frames received.
 % The primary and secondary synchronization signals (PSS and SSS) and the
@@ -12,62 +15,8 @@ sr = 15.36e6;  % Sampling rate for loaded samples
 if (~exist('channelFigure','var') || ~isvalid(channelFigure))
     channelFigure = figure('Visible','off');
 end
-% [spectrumAnalyzer,synchCorrPlot,pdcchConstDiagram] = ...
-%     hSIB1RecoveryExamplePlots(channelFigure,sr);
-%% Plot, sizing and positioning
-res = get(0,'ScreenSize');
-if (res(3)>1280)
-    xpos = fix(res(3)*[1/2 3/4]);
-    ypos = fix(res(4)*[1/16 1/2]);
-    xsize = xpos(2) - xpos(1) - 20;
-    ysize = fix(xsize * 5 / 6);
-    repositionPlots = true;
-else
-    repositionPlots = false;
-end
-
-% Received signal spectrum
-spectrumAnalyzer = dsp.SpectrumAnalyzer();
-spectrumAnalyzer.Name = 'Received signal spectrum';
-spectrumAnalyzer.SampleRate = sr;
-spectrumAnalyzer.ReducePlotRate = false;
-spectrumAnalyzer.PlotMaxHoldTrace = true;
-spectrumAnalyzer.PlotMinHoldTrace = true;
-spectrumAnalyzer.ShowGrid = true;
-if (repositionPlots)
-    spectrumAnalyzer.Position = [xpos(1) ypos(2) xsize ysize];
-end
-
-% PSS/SSS correlation 
-synchCorrPlot = dsp.ArrayPlot();
-synchCorrPlot.Name = 'PSS/SSS correlation';
-synchCorrPlot.XLabel = 'Timing offset (samples)';
-synchCorrPlot.YLabel = 'Correlation level';
-synchCorrPlot.PlotType = 'Line';
-synchCorrPlot.ReduceUpdates = false;
-synchCorrPlot.ShowGrid = true;
-if (repositionPlots)
-    synchCorrPlot.Position = [xpos(2) ypos(2) xsize ysize];
-end
-
-% PDCCH constellation
-pdcchConstDiagram = comm.ConstellationDiagram();
-pdcchConstDiagram.Name = 'PDCCH constellation';
-pdcchConstDiagram.ShowReferenceConstellation = false;
-pdcchConstDiagram.ShowGrid = true;
-if (repositionPlots)
-    pdcchConstDiagram.Position = [xpos(2) ypos(1) xsize ysize];
-end
-
-% Channel magnitude response
-channelFigure.Name = 'Channel magnitude response';
-channelFigure.NumberTitle = 'off';
-channelFigure.Color = [40 40 40]/255;   
-channelFigure.Visible = 'off';
-if (repositionPlots)
-    channelFigure.Position = [xpos(1) ypos(1) xsize ysize];      
-end
-
+[spectrumAnalyzer,synchCorrPlot,pdcchConstDiagram] = ...
+    hSIB1RecoveryExamplePlots(channelFigure,sr);
 %% PDSCH EVM
 pdschEVM = comm.EVM();
 pdschEVM.MaximumEVMOutputPort = true;
@@ -167,6 +116,10 @@ if (max(corr{1})<threshold)
 end
 % Return to originally detected cell identity
 enbRx.NCellID = enbMax.NCellID;
+
+% Plot PSS/SSS correlation and threshold
+synchCorrPlot.YLimits = [0 max([corr{1}; threshold])*1.1];
+synchCorrPlot([corr{1} threshold*ones(size(corr{1}))]);
 
 % Perform timing synchronization
 fprintf('Timing offset to frame start: %d samples\n',offset);
@@ -288,7 +241,7 @@ end
 % vestimation and correction is performed on the resampled signal.
 % Timing synchronization and OFDM demodulation are then performed.
 
-fprintf('Redoing now that bandwidth (NDLRB=%d) is known...\n',enbRx.NDLRB);
+fprintf('Restarting now that bandwidth (NDLRB=%d) is known\n',enbRx.NDLRB);
 
 % Resample now we know the true bandwidth
 ofdmInfo = lteOFDMInfo(enbRx);
@@ -307,20 +260,17 @@ for i = 1:nRxAnts
 end
 
 % Perform frequency offset estimation and correction
-fprintf('\nPerforming frequency offset estimation...\n');
 delta_f = lteFrequencyOffset(enbRx, resampled);
 fprintf('Frequency offset: %0.3fHz\n',delta_f);
 resampled = lteFrequencyCorrect(enbRx, resampled, delta_f);
 
-% Find beginning of frame
-fprintf('\nPerforming timing offset estimation...\n');
+% Find beginning of frame+
 offset = lteDLFrameOffset(enbRx, resampled); 
 fprintf('Timing offset to frame start: %d samples\n',offset);
 % Aligning signal with the start of the frame
 resampled = resampled(1+offset:end,:);   
 
 % OFDM demodulation
-fprintf('\nPerforming OFDM demodulation...\n\n');
 rxgrid = lteOFDMDemodulate(enbRx, resampled);   
 
 %% SIB1 Decoding
@@ -392,7 +342,6 @@ while (size(rxgrid,2) > 0)
     % those shown already for BCH reception. lteExtractResources is used to
     % extract REs corresponding to the PCFICH from the received subframe
     % rxsubframe and channel estimate hest.
-    fprintf('Decoding CFI...\n\n');
     pcfichIndices = ltePCFICHIndices(enbRx);  % Get PCFICH indices
     [pcfichRx, pcfichHest] = lteExtractResources(pcfichIndices, rxsubframe, hest);
     % Decode PCFICH
@@ -404,7 +353,7 @@ while (size(rxgrid,2) > 0)
     enbRx.CFI = cfi;
     fprintf('Decoded CFI value: %d\n\n', enbRx.CFI);   
     
-    %% For TDD, the PDCCH must be decoded blindly across possible values of 
+    % For TDD, the PDCCH must be decoded blindly across possible values of 
     % the PHICH configuration factor m_i (0,1,2) in TS36.211 Table 6.9-1.
     % Values of m_i = 0, 1 and 2 can be achieved by configuring TDD
     % uplink-downlink configurations 1, 6 and 0 respectively.
@@ -433,7 +382,6 @@ while (size(rxgrid,2) > 0)
         % The LTE System Toolbox provides full blind search of the PDCCH to
         % find any DCI messages with a specified RNTI, in this case the
         % SI-RNTI.
-        fprintf('PDCCH search for SI-RNTI...\n\n');
         pdcch = struct('RNTI', 65535);  
         pdcch.ControlChannelType = 'PDCCH';
         pdcch.EnableCarrierIndication = 'Off';
@@ -509,7 +457,7 @@ while (size(rxgrid,2) > 0)
     % Update channel estimate plot 
     figure(channelFigure);
     surf(abs(hest(:,:,1,1)));
-    [spectrumAnalyzer,synchCorrPlot,pdcchConstDiagram] = hSIB1RecoveryExamplePlots(channelFigure);
+    hSIB1RecoveryExamplePlots(channelFigure);
     channelFigure.CurrentAxes.XLim = [0 size(hest,2)+1];
     channelFigure.CurrentAxes.YLim = [0 size(hest,1)+1];   
     
@@ -524,7 +472,6 @@ while (size(rxgrid,2) > 0)
         
 end
 %% Demodulation and channel estimation for all frames
-enbRx.NSubframe = 0;
 rxGrid = lteOFDMDemodulate(enbRx, resampled);  
 [estChannel, noiseEst] = lteDLChannelEstimate(enbRx,cec,rxGrid);
 
@@ -540,13 +487,40 @@ eqGrid = lteEqualizeMMSE(rxGrid, estChannel, noiseEst);
 % Perform deprecoding, layer demapping, demodulation and
 % descrambling on the received data using the estimate of the channel
 % PDSCHRx.CSI = 'On'; % Use soft decision scaling
- [rxEncodedBits, rxCW] = ltePDSCHDecode(enbRx,PDSCHRx,rxGrid,estChannel,noiseEst);
+switch enbRx.CyclicPrefix
+    case 'Normal'
+        NSym = 14;
+    case 'Extended'
+        NSym = 12;
+end
+TotSubframes = size(rxGrid,2)/NSym;
+enbRx.NSubframe = 0;
+[rxEncodedBits, rxCW] = ltePDSCHDecode(enbRx, PDSCHRx,...
+                        rxGrid(:,1:14,:),estChannel,noiseEst);
 % 
 %% Decode DownLink Shared Channel (DL-SCH)
-% PDSCHRx.NTurboDecIts = 5;
-if iscell(rxEncodedBits) && ~iscell(PDSCH.Modulation)
-   [rxBits,crc, ~] = lteDLSCHDecode(enbRx,PDSCH,PDSCHRx.TrBlkSize,rxEncodedBits{1});
+PDSCHRx.NTurboDecIts = 5;
+if iscell(rxEncodedBits) && ~iscell(PDSCHRx.Modulation)
+   [rxBitsTmp,crc, ~] = lteDLSCHDecode(enbRx, PDSCHRx, trblklen,...
+                      rxEncodedBits{1});
 else
-   [rxBits,crc, ~] = lteDLSCHDecode(enbRx,PDSCH,PDSCHRx.TrBlkSize,rxEncodedBits);
+   [rxBitsTmp,crc, ~] = lteDLSCHDecode(enbRx, PDSCHRx, trblklen,...
+                      rxEncodedBits);
 end
-
+rxBits = cell2mat(rxBitsTmp);
+for n=1:TotSubframes-1
+    enbRx.NSubframe = n;
+    [rxEncodedBits, rxCW] = ltePDSCHDecode(enbRx, PDSCHRx,...
+                          rxGrid(:,14*n+1:14*n+14,:), estChannel,noiseEst);
+    % 
+    %% Decode DownLink Shared Channel (DL-SCH)
+    % PDSCHRx.NTurboDecIts = 5;
+    if iscell(rxEncodedBits) && ~iscell(PDSCHRx.Modulation)
+       [rxBitsTmp,crc, ~] = lteDLSCHDecode(enbRx, PDSCHRx, trblklen,...
+                        rxEncodedBits{1});
+    else
+       [rxBitsTmp,crc, ~] = lteDLSCHDecode(enbRx, PDSCHRx, trblklen,...
+                        rxEncodedBits);
+    end
+    rxBits = [rxBits; cell2mat(rxBitsTmp)]; %#ok<AGROW>
+end

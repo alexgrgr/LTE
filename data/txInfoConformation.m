@@ -1,5 +1,6 @@
 function [txInfo] = txInfoConformation(PDSCH, enb, params)
-
+%% Automatic creation of a structure for information interchange between
+% functions
 txInfo = lteOFDMInfo(enb);
 %txInfo.TMN = ;
 txInfo.BW = lteDLRBtoBW(enb.NDLRB);

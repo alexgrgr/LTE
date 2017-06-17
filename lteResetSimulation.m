@@ -1,1 +1,0 @@
-objValues.stopSim=0;

@@ -1,5 +1,7 @@
-function [crc, eqGrid, enbRx, PDSCHRx, rxBits]= FiveGRx(rxgrid, enbRx, params, txInfo)
-
+function [crc, eqGrid, rxBits]= FiveGRx(rxGrid, enbRx, PDSCHRx)
+% Receives an LTE downlink resource grid that have beeen modulated in one
+% of the 5G candidates waveforms, FOFDM or UFMC. It creates graph and
+% extracts information for analysis.
 
 %% Plot, sizing and positioning
 res = get(0,'ScreenSize');
@@ -51,32 +53,13 @@ cec.InterpWindow = 'Centered';        % Interpolation window type
 cec.InterpWinSize = 1;                % Interpolation window size  
 
 % Perform channel estimation for first subframe
-[hest, nest] = lteDLChannelEstimate(enbRx, cec, rxgrid);
+[estChannel, noiseEst] = lteDLChannelEstimate(enbRx, cec, rxGrid);
     
 % Update channel estimate plot 
-channelFigure.CurrentAxes.XLim = [0 size(hest,2)+1];
+% channelFigure.CurrentAxes.XLim = [0 size(estChannel,2)+1];
 figure(channelFigure);
-surf(abs(hest(:,:,1,1)));
+surf(abs(estChannel(:,:,1,1)));
     
-%% Decode PDSCH 
-% Perform deprecoding, layer demapping, demodulation and
-% descrambling on the received data using the estimate of the channel
-PDSCH.CSI = 'On'; % Use soft decision scaling
-[rxEncodedBits, rxCW] = ltePDSCHDecode(enb,PDSCH,rxSubframe,hest,nest);
-
-PDSCH.NTurboDecIts = 5;
-if iscell(rxEncodedBits) && ~iscell(PDSCH.Modulation)
-   [rxBits,crc] = lteDLSCHDecode(enb,PDSCH,PDSCH.TrBlkSize,rxEncodedBits{1});
-else
-   [rxBits,crc] = lteDLSCHDecode(enb,PDSCH,PDSCH.TrBlkSize,rxEncodedBits);
-end
-% % Compute PDSCH EVM
-% recoded = lteDLSCH(enbRx, PDSCHRx, pdschIndicesInfo.G, sib1);
-% remod = ltePDSCH(enbRx, PDSCHRx, recoded);
-% [~,refSymbols] = ltePDSCHDecode(enbRx, PDSCHRx, remod);
-% [rmsevm,peakevm] = pdschEVM(refSymbols{1}, pdschSymbols{1});
-% fprintf('PDSCH RMS EVM: %0.3f%%\n',rmsevm);
-% fprintf('PDSCH Peak EVM: %0.3f%%\n\n',peakevm);
 
 % The effects of the channel on the received resource grid are equalized 
 % using lteEqualizeMMSE. This function uses the estimate of the channel 
@@ -86,5 +69,41 @@ end
 % grid (txGrid) before OFDM modulation.
 
 eqGrid = lteEqualizeMMSE(rxGrid, estChannel, noiseEst);
+
+%% Decode PDSCH 
+% Perform deprecoding, layer demapping, demodulation and
+% descrambling on the received data using the estimate of the channel
+PDSCHRx.CSI = 'On'; % Use soft decision scaling
+TotSubframes = size(rxGrid,2)/14;
+enbRx.NSubframe = 0;
+[rxEncodedBits, rxCW] = ltePDSCHDecode(enbRx, PDSCHRx,...
+                        rxGrid(:,1:14,:), estChannel, noiseEst);
+% 
+%% Decode DownLink Shared Channel (DL-SCH)
+PDSCHRx.NTurboDecIts = 5;
+if iscell(rxEncodedBits) && ~iscell(PDSCHRx.Modulation)
+   [rxBits,crc, ~] = lteDLSCHDecode(enbRx, PDSCHRx, PDSCHRx.TrBlkSize,...
+                      rxEncodedBits{1});
+else
+   [rxBits,crc, ~] = lteDLSCHDecode(enbRx, PDSCHRx, PDSCHRx.TrBlkSize,...
+                      rxEncodedBits);
+end
+%rxBits = cell2mat(rxBitsTmp);
+for n=1:TotSubframes-1
+    enbRx.NSubframe = n;
+    [rxEncodedBits, rxCW] = ltePDSCHDecode(enbRx, PDSCHRx,...
+                          rxGrid(:,14*n+1:14*n+14,:), estChannel,noiseEst);
+    % 
+    %% Decode DownLink Shared Channel (DL-SCH)
+    % PDSCHRx.NTurboDecIts = 5;
+    if iscell(rxEncodedBits) && ~iscell(PDSCHRx.Modulation)
+       [rxBitsTmp,crc, ~] = lteDLSCHDecode(enbRx, PDSCHRx, PDSCHRx.TrBlkSize,...
+                        rxEncodedBits{1});
+    else
+       [rxBitsTmp,crc, ~] = lteDLSCHDecode(enbRx, PDSCHRx, PDSCHRx.TrBlkSize,...
+                        rxEncodedBits);
+    end
+    rxBits = [rxBits; rxBitsTmp];%cell2mat(rxBitsTmp)]; %#ok<AGROW>
+end
 
 

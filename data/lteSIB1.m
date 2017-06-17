@@ -1,20 +1,16 @@
-function [ subframe, PRBSet ] = lteSIB1(enb, txInfo, subframe)
-% This function adds the SIB1 to the provided subframe.
-% Parameters:
-%   - subframe: subframe to add the SIB1 to
-%   - enbConfig: enb configuration structure. This structure must contain a
-%   SIB substructure with the SIB1 parameters. These are:
-%       - Data: vector of bits to map to the SIB1
-%       - DCIFormat: DCI format used, can be 'Format1A' and 'Format1C'
-%       - AllocationType: indocates whether the resources allocated are
-%       localized (0) or distributed (1)
-%       - VRBStart: virtual RB allocation starting resource block
-%       - VRBLength: length of virtually contiguously allocated resource block
-%       Only required for Format1A
-%           - N1APRB: Number of physical resource blocks for Format1A
-%       Only required for distributed allocation AllocationType = 1
-%           - Gap: Distributed allocation gap, can take the values 0 (gap1
-%           and 1 (gap2)
+function [ subframe, PRBSet ] = lteSIB1(enb, PDSCH, subframe)
+% This function adds the SIB1 to the provided subframe. Based on lteRMCDL.m
+% SIB - System Information Block
+%  Data           - vector of bits to map to the SIB1
+%  DCIFormat      - DCI format used, can be 'Format1A' and 'Format1C'
+%  AllocationType - indocates whether the resources allocated are
+%                   localized (0) or distributed (1)
+%  VRBStart       - virtual RB allocation starting resource block
+%  VRBLength      - length of virtually contiguously allocated resource block
+%  N1APRB         - Number of physical resource blocks for Format1A
+%  Gap            - Distributed allocation gap, can take the values 0 (gap1
+%                   and 1 (gap2) Only required for distributed allocation 
+%                   AllocationType = 1.
 
 if ~isfield(enb.SIB,'Data')
     error('lte:error','The function call resulted in an error: Could not find a SIB structure field called Data.');
@@ -61,7 +57,7 @@ else
     PDSCHsib1.TxScheme='TxDiversity';
     PDSCHsib1.NLayers=enb.CellRefP;
 end
-PDSCHsib1.Modulation=txInfo.PDSCH.Modulation;%'QPSK'; %as per 36.213 Section 7.1.7.1
+PDSCHsib1.Modulation=PDSCH.Modulation;%'QPSK'; %as per 36.213 Section 7.1.7.1
 
 % RV setup for SIB1 per TS 36.321 Section 5.3.1
 SFN = enb.NFrame;
